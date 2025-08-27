@@ -1,114 +1,113 @@
+#include <SDL3/SDL.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
-#include <SDL.h>
+#define WIN32_DWM_HACK
+#if defined(_WIN32) && defined(WIN32_DWM_HACK)
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+extern HRESULT DwmFlush(void);
+#endif
 
-double random_double(double min_value, double max_value) {
+SDL_Window* win;
+SDL_Renderer* ren;
+
+static inline float random_float(float min_value, float max_value) {
     int res = rand();
-    return (double)res * (max_value - min_value) / (double)RAND_MAX + min_value;
+    return (float)((double)res * ((double)max_value - (double)min_value) / (double)RAND_MAX) + min_value;
 }
 
-int rand_col(void) {
-    return (int)((double)rand() * 256.0 / ((double)RAND_MAX + 1.0));
+static inline float random_col(void) {
+	int res = rand();
+	return (float)((double)res / (double)RAND_MAX);
 }
 
-int main(int argc, char* argv[]) {
-    (void)argc;
-    (void)argv;
-    srand((unsigned int)time(NULL));
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) < 0) {
-        return 1;
-    }
-    SDL_Window* win = SDL_CreateWindow(
-        "minisaver",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        640, 480,
-        SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_BORDERLESS |
-        SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_FULLSCREEN_DESKTOP
-    );
-    if (win == NULL) {
-        SDL_Quit();
-        return 1;
-    }
-    SDL_Renderer* ren = SDL_CreateRenderer(
-        win,
-        -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
-    );
-    if (ren == NULL) {
-        SDL_DestroyWindow(win);
-        SDL_Quit();
-        return 1;
-    }
-    SDL_ShowCursor(SDL_DISABLE);
-    SDL_Event event;
-    int running = 1;
-    double cur_col[3] = { 0.0, 0.0, 0.0 };
-    double now_col[3];
-    double target_col[3] = { (double)rand_col(), (double)rand_col(), (double)rand_col() };
-    double ch_time = 1.0;
-    double timer = 0.0;
-    double speed[3] = { 
+static void main_loop(void) {
+	SDL_Event ev;
+	float cur_col[3] = { 0.f, 0.f, 0.f };
+    float now_col[3];
+    float target_col[3] = { random_col(), random_col(), random_col() };
+    float ch_time = 1.f;
+    float timer = 0.f;
+    float speed[3] = { 
         (target_col[0] - cur_col[0]) / ch_time,
         (target_col[1] - cur_col[1]) / ch_time,
         (target_col[2] - cur_col[2]) / ch_time
     };
-    Uint64 now_tick;
-    Uint64 last_tick = SDL_GetTicks64();
-    int big_delay = 0;
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-                case SDL_QUIT: {
-                    running = 0;
-                    break;                    
-                }
-                case SDL_KEYDOWN: {
-                    if (event.key.keysym.scancode == SDL_SCANCODE_Q) {
-                        running = 0;
-                        break;
-                    }
-                    break;
-                }
-                case SDL_MOUSEBUTTONDOWN: {
-                    if (big_delay) {
-                        big_delay = 0;
-                        SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
-                    }
-                    else {
-                        big_delay = 1;
-                        SDL_SetWindowFullscreen(win, 0);
-                    }
-                    break;
-                }
-            }
-        }
-        now_tick = SDL_GetTicks64();
-        timer = (double)(now_tick - last_tick) / 1000.0;
-        if (timer >= ch_time) {
-            timer = 0.0;
+	Uint64 last_tick = SDL_GetTicks();
+	while (1) {
+		while (SDL_PollEvent(&ev)) {
+			switch (ev.type) {
+				case SDL_EVENT_QUIT:
+				case SDL_EVENT_MOUSE_BUTTON_DOWN:
+				case SDL_EVENT_KEY_DOWN:
+				case SDL_EVENT_WINDOW_HIDDEN:
+				case SDL_EVENT_WINDOW_MINIMIZED:
+				case SDL_EVENT_WINDOW_FOCUS_LOST: {
+					return;
+				}
+			}
+		}
+		Uint64 now_tick = SDL_GetTicks();
+		float timer = (float)(now_tick - last_tick) / 1000.f;
+		if (timer >= ch_time) {
+			timer = 0.f;
             last_tick = now_tick;
-            cur_col[0] = target_col[0];
+			cur_col[0] = target_col[0];
             cur_col[1] = target_col[1];
             cur_col[2] = target_col[2];
-            target_col[0] = (double)rand_col();
-            target_col[1] = (double)rand_col();
-            target_col[2] = (double)rand_col();
-            ch_time = (double)random_double(1.5, 4.0);
+            target_col[0] = random_col();
+            target_col[1] = random_col();
+            target_col[2] = random_col();
+            ch_time = random_float(1.5f, 4.f);
             speed[0] = (target_col[0] - cur_col[0]) / ch_time;
             speed[1] = (target_col[1] - cur_col[1]) / ch_time;
             speed[2] = (target_col[2] - cur_col[2]) / ch_time;
-        }
+		}
         now_col[0] = cur_col[0] + timer * speed[0];
         now_col[1] = cur_col[1] + timer * speed[1];
         now_col[2] = cur_col[2] + timer * speed[2];
-        SDL_SetRenderDrawColor(ren, (Uint8)now_col[0], (Uint8)now_col[1], (Uint8)now_col[2], 255);
-        SDL_RenderClear(ren);
-        SDL_RenderPresent(ren);
-        if (big_delay)
-            SDL_Delay(500);
-    }
-    SDL_DestroyRenderer(ren);
-    SDL_DestroyWindow(win);
-    SDL_Quit();
-    return 0;
+		SDL_SetRenderDrawColorFloat(ren, now_col[0], now_col[1], now_col[2], 1.f);
+		SDL_RenderClear(ren);
+		SDL_RenderPresent(ren);
+#if defined(_WIN32) && defined(WIN32_DWM_HACK)
+		DwmFlush();
+#endif
+	}
+}
+
+int main(int argc, char* argv[]) {
+	(void)argc;
+	(void)argv;
+	win = NULL;
+	ren = NULL;
+	srand((unsigned int)time(NULL));
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
+		win = SDL_CreateWindow(
+			"minisaver", 640, 480,
+			SDL_WINDOW_BORDERLESS | SDL_WINDOW_MOUSE_GRABBED | SDL_WINDOW_KEYBOARD_GRABBED |
+			SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_FULLSCREEN
+		);
+		if (win) {
+			SDL_PropertiesID props = SDL_CreateProperties();
+			if (props) {
+				SDL_SetPointerProperty(props, SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, (void*)win);
+#if defined(_WIN32) && defined(WIN32_DWM_HACK)
+				SDL_SetNumberProperty(props, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, 0);
+#else
+				SDL_SetNumberProperty(props, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, 1);
+#endif
+				ren = SDL_CreateRendererWithProperties(props);
+				SDL_DestroyProperties(props);
+				if (ren) {
+					SDL_HideCursor();
+					main_loop();
+					SDL_DestroyRenderer(ren);
+				}
+			}
+			SDL_DestroyWindow(win);
+		}
+		SDL_Quit();
+	}
+	return (ren == NULL) ? 1 : 0;
 }
