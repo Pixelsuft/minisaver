@@ -1,12 +1,10 @@
 #include <SDL3/SDL.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <time.h>
 #define WIN32_DWM_HACK
 #if defined(_WIN32) && defined(WIN32_DWM_HACK)
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-extern HRESULT DwmFlush(void);
+#include <dwmapi.h>
 #endif
 
 SDL_Window* win;
