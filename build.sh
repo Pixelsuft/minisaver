@@ -1,5 +1,2 @@
-if [ -z $CC ]; then
-    export CC=cc
-fi
-
-$CC main.c $(sdl2-config --cflags --libs) $CFLAGS $LDFLAGS -Wextra -Wpedantic -lSDL2main -o minisaver
+# For Win32: cc main.c -SDL3 -ldwmapi $CFLAGS $LDFLAGS -Wextra -Wpedantic -o minisaver.exe
+cc main.c -SDL3 $CFLAGS $LDFLAGS -Wextra -Wpedantic -o minisaver
