@@ -36,12 +36,14 @@ static void main_loop(void) {
 	while (1) {
 		while (SDL_PollEvent(&ev)) {
 			switch (ev.type) {
-				case SDL_EVENT_QUIT:
-				case SDL_EVENT_MOUSE_BUTTON_DOWN:
-				case SDL_EVENT_KEY_DOWN:
+#ifdef _WIN32
 				case SDL_EVENT_WINDOW_HIDDEN:
 				case SDL_EVENT_WINDOW_MINIMIZED:
-				case SDL_EVENT_WINDOW_FOCUS_LOST: {
+				case SDL_EVENT_WINDOW_FOCUS_LOST:
+#endif
+				case SDL_EVENT_QUIT:
+				case SDL_EVENT_MOUSE_BUTTON_DOWN:
+				case SDL_EVENT_KEY_DOWN: {
 					return;
 				}
 			}
